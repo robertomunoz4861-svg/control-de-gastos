@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Control de Efectivo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1f44">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--ink:#0a1f44;--paper:#fff;--cash:#ffd60a;--in:#00692c;--out:#b00020;--line:#0a1f44;--soft:#eef1f7}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:20px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:3px solid var(--ink);background:var(--paper);border-radius:14px;min-height:60px;padding:10px 16px;font-weight:700}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid #1a73e8;outline-offset:2px}
+.hidden{display:none!important}
+/* PIN */
+#lock{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;background:var(--ink);color:#fff;text-align:center}
+#lock h1{margin:0;font-size:30px}
+#pinMsg{min-height:28px;font-weight:700;color:var(--cash)}
+#dots{display:flex;gap:14px;height:28px}
+#dots i{width:22px;height:22px;border-radius:50%;border:3px solid #fff}
+#dots i.on{background:var(--cash);border-color:var(--cash)}
+#pad{display:grid;grid-template-columns:repeat(3,84px);gap:12px}
+#pad button{height:76px;font-size:32px;background:#fff;color:var(--ink);border-color:#fff}
+#pad button.ok{background:var(--cash);border-color:var(--cash)}
+#cancelPin{background:none;color:#fff;border-color:#fff;min-height:48px}
+.shake{animation:sh .35s}
+@keyframes sh{20%{transform:translateX(-10px)}60%{transform:translateX(10px)}}
+/* Main */
+main{max-width:640px;margin:0 auto;padding:12px 14px 40px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#today{font-weight:800;font-size:21px;text-transform:capitalize}
+.top button{min-height:48px;padding:6px 12px;font-size:17px}
+#saldo{margin:12px 0;padding:18px 16px;border:4px solid var(--ink);border-radius:18px;background:var(--cash);text-align:center}
+#saldo small{display:block;font-size:20px;font-weight:700}
+#saldo strong{display:block;font-size:clamp(46px,15vw,76px);line-height:1.05;font-variant-numeric:tabular-nums}
+#saldo.low{background:var(--out);color:#fff;border-color:var(--out)}
+#alert{margin-top:6px;font-weight:800;font-size:20px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acts button{min-height:84px;font-size:22px;color:#fff}
+.b-in{background:var(--in);border-color:var(--in)}
+.b-out{background:var(--out);border-color:var(--out)}
+.tot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.tot div{background:var(--soft);border-radius:12px;padding:10px;text-align:center;font-size:17px}
+.tot b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}
+.filter label{font-weight:700}
+.filter input{flex:1;min-width:150px;min-height:52px;border:3px solid var(--ink);border-radius:12px;padding:6px 10px;background:#fff}
+.filter button{min-height:52px}
+h2{margin:16px 0 6px;font-size:24px}
+.mv{border:3px solid var(--ink);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.mv .r1{display:flex;justify-content:space-between;gap:8px;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.mv .r2{display:flex;justify-content:space-between;gap:8px;font-size:17px;margin-top:2px}
+.in{color:var(--in)}.out{color:var(--out)}.adj{color:#5b4a00}
+.mv.adjrow{background:var(--soft);border-style:dashed}
+.mv.void .r1 span:first-child{text-decoration:line-through}
+.tag{display:inline-block;font-size:15px;font-weight:800;border:2px solid currentColor;border-radius:8px;padding:0 6px;margin-left:6px}
+.mv .btns{display:flex;gap:8px;margin-top:8px}
+.mv .btns button{min-height:48px;font-size:17px;flex:1}
+.empty{padding:18px;text-align:center;border:3px dashed var(--ink);border-radius:14px}
+.foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+/* Modal */
+#modal{position:fixed;inset:0;background:rgba(10,31,68,.8);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+#box{background:#fff;width:100%;max-width:640px;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+#box h2{margin-top:0}
+#box label{display:block;font-weight:700;margin:12px 0 4px}
+#box input,#box select{width:100%;min-height:60px;border:3px solid var(--ink);border-radius:12px;padding:8px 12px;background:#fff}
+#box input.big{font-size:34px;font-weight:800}
+#err{color:var(--out);font-weight:800;min-height:26px;margin-top:6px}
+#box .row{display:grid;gap:10px;margin-top:10px}
+</style>
+</head>
+<body>
+
+<section id="lock" class="hidden">
+  <h1>Control de Efectivo</h1>
+  <div id="pinTitle">Introduce tu PIN</div>
+  <div id="dots"></div>
+  <div id="pinMsg" aria-live="polite"></div>
+  <div id="pad"></div>
+  <button id="cancelPin" class="hidden">Cancelar</button>
+</section>
+
+<main id="app" class="hidden">
+  <div class="top">
+    <div id="today"></div>
+    <button id="btnLock" aria-label="Bloquear">Bloquear</button>
+  </div>
+  <div id="saldo">
+    <small>Dinero restante</small>
+    <strong id="saldoV">0,00 €</strong>
+    <div id="alert" class="hidden"></div>
+  </div>
+  <div class="acts">
+    <button class="b-in" id="btnIn">+ Dinero retirado</button>
+    <button class="b-out" id="btnOut">− Dinero gastado</button>
+  </div>
+  <div class="tot">
+    <div>Total retirado<b id="tIn" class="in">0,00 €</b></div>
+    <div>Total gastado<b id="tOut" class="out">0,00 €</b></div>
+  </div>
+  <h2>Historial</h2>
+  <div class="filter">
+    <label for="fDate">Ver un día</label>
+    <input type="date" id="fDate">
+    <button id="fClear">Ver todo</button>
+  </div>
+  <div id="list"></div>
+  <div class="foot">
+    <button id="btnXls">Guardar en Excel</button>
+    <button id="btnSet">Ajustes</button>
+  </div>
+</main>
+
+<div id="modal" class="hidden"><div id="box"></div></div>
+
+<script>
+"use strict";
+const KEY='control_efectivo_v1';
+const $=s=>document.querySelector(s);
+const EUR=new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'});
+const eur=c=>EUR.format(c/100);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad2=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
+const fmtDate=d=>new Date(d+'T00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+/* ---------- Datos (importes en céntimos enteros) ---------- */
+let D=load();
+function load(){
+  try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&r.moves)return r}catch(e){}
+  return{pin:null,salt:Math.random().toString(36).slice(2),umbral:2000,lock:60,moves:[],seq:1};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){alert('No se pudo guardar en este dispositivo. Exporta a Excel ahora.')}}
+function hash(p){ // cyrb53: protege de miradas casuales, no es cifrado
+  const s=D.salt+p;let a=0xdeadbeef,b=0x41c6ce57;
+  for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=Math.imul(a^c,2654435761);b=Math.imul(b^c,1597334677)}
+  a=Math.imul(a^(a>>>16),2246822507)^Math.imul(b^(b>>>13),3266489909);
+  b=Math.imul(b^(b>>>16),2246822507)^Math.imul(a^(a>>>13),3266489909);
+  return (4294967296*(2097151&b)+(a>>>0)).toString(36);
+}
+function parseEur(s){
+  s=String(s).trim().replace(/\s/g,'').replace(',','.');
+  if(!/^\d+(\.\d{1,2})?$/.test(s))return null;
+  const [i,d='']=s.split('.');
+  return parseInt(i,10)*100+parseInt((d+'00').slice(0,2),10);
+}
+const byId=id=>D.moves.find(m=>m.id==id);
+const sign=m=>m.k==='out'?-m.c:m.c;               // efecto en el saldo
+const sorted=()=>[...D.moves].sort((a,b)=>a.d.localeCompare(b.d)||a.t-b.t);
+const balance=()=>D.moves.reduce((s,m)=>s+sign(m),0);
+function contrib(m){ // [retirado, gastado] de cada movimiento
+  if(m.k==='in')return[m.c,0];
+  if(m.k==='out')return[0,m.c];
+  return byId(m.of).k==='in'?[m.c,0]:[0,-m.c];
+}
+function eff(id){ // importe vigente tras ajustes
+  const m=byId(id);const s=D.moves.filter(a=>a.of==id).reduce((x,a)=>x+a.c,0);
+  return m.k==='in'?m.c+s:m.c-s;
+}
+function add(k,c,d,n,of){D.moves.push({id:D.seq++,k,c,d,t:Date.now(),n:n||'',of});save()}
+
+/* ---------- PIN y bloqueo ---------- */
+let pin={mode:'unlock',buf:'',first:''};
+function buildPad(){
+  const keys=['1','2','3','4','5','6','7','8','9','⌫','0','OK'];
+  $('#pad').innerHTML=keys.map(k=>`<button data-k="${k}" class="${k==='OK'?'ok':''}" aria-label="${k==='⌫'?'Borrar':k}">${k}</button>`).join('');
+}
+function showPin(mode,cancelable){
+  pin={mode,buf:'',first:''};
+  $('#app').classList.add('hidden');$('#modal').classList.add('hidden');$('#lock').classList.remove('hidden');
+  $('#cancelPin').classList.toggle('hidden',!cancelable);
+  pinUI();
+}
+function pinUI(msg){
+  $('#pinTitle').textContent={unlock:'Introduce tu PIN',new:'Crea un PIN de 4 a 6 dígitos',confirm:'Repite el PIN para confirmar'}[pin.mode];
+  $('#dots').innerHTML=Array.from({length:6},(_,i)=>`<i class="${i<pin.buf.length?'on':''}"></i>`).join('');
+  $('#pinMsg').textContent=msg||'';
+}
+$('#pad').addEventListener('click',e=>{
+  const k=e.target.closest('button')?.dataset.k;if(!k)return;
+  if(k==='⌫'){pin.buf=pin.buf.slice(0,-1);return pinUI()}
+  if(k!=='OK'){if(pin.buf.length<6)pin.buf+=k;return pinUI()}
+  if(pin.buf.length<4)return pinUI('Mínimo 4 dígitos');
+  if(pin.mode==='unlock'){
+    if(hash(pin.buf)===D.pin)return enter();
+    pin.buf='';pinUI('PIN incorrecto');$('#dots').classList.remove('shake');void $('#dots').offsetWidth;$('#dots').classList.add('shake');
+  }else if(pin.mode==='new'){pin.first=pin.buf;pin.buf='';pin.mode='confirm';pinUI()}
+  else{
+    if(pin.buf!==pin.first){pin.mode='new';pin.buf='';pin.first='';return pinUI('No coinciden. Empieza de nuevo')}
+    D.pin=hash(pin.buf);save();enter();
+  }
+});
+$('#cancelPin').onclick=enter;
+function enter(){$('#lock').classList.add('hidden');$('#app').classList.remove('hidden');render();arm()}
+function lockNow(){$('#modal').classList.add('hidden');showPin('unlock',false)}
+let timer;
+function arm(){clearTimeout(timer);if(D.pin&&!$('#app').classList.contains('hidden'))timer=setTimeout(lockNow,D.lock*1000)}
+['pointerdown','keydown','scroll'].forEach(ev=>addEventListener(ev,arm,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&D.pin&&!$('#app').classList.contains('hidden'))lockNow()});
+$('#btnLock').onclick=lockNow;
+
+/* ---------- Pantalla principal ---------- */
+function render(){
+  $('#today').innerHTML='<b>'+new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</b>';
+  const bal=balance();
+  $('#saldoV').textContent=eur(bal);
+  const low=bal<=D.umbral;
+  $('#saldo').classList.toggle('low',low);
+  $('#alert').classList.toggle('hidden',!low);
+  $('#alert').textContent=bal<0?'Saldo negativo. Revisa los gastos':'Saldo bajo: te quedan '+eur(bal);
+  const f=$('#fDate').value;
+  const all=sorted();let run=0;
+  const rows=all.map(m=>({m,run:(run+=sign(m))}));
+  const shown=rows.filter(r=>!f||r.m.d===f).reverse();
+  let tin=0,tout=0;shown.forEach(r=>{const[a,b]=contrib(r.m);tin+=a;tout+=b});
+  $('#tIn').textContent=eur(tin);$('#tOut').textContent=eur(tout);
+  $('#list').innerHTML=shown.length?shown.map(({m,run})=>row(m,run)).join(''):
+    `<div class="empty">${f?'No hay movimientos este día.':'Aún no hay movimientos. Empieza con «Dinero retirado».'}</div>`;
+}
+function row(m,run){
+  const date=fmtDate(m.d),note=m.n?esc(m.n):'';
+  if(m.k==='adj'){
+    const o=byId(m.of);
+    return `<div class="mv adjrow"><div class="r1 adj"><span>Ajuste<span class="tag">#${o.id}</span></span><span>${m.c>0?'+':'−'}${eur(Math.abs(m.c))}</span></div>
+    <div class="r2"><span>${date} · ${note||'Corrección'}</span><span>Saldo ${eur(run)}</span></div></div>`;
+  }
+  const e=eff(m.id),void_=e===0,cls=m.k==='in'?'in':'out',s=m.k==='in'?'+':'−';
+  const edited=D.moves.some(a=>a.of==m.id);
+  return `<div class="mv ${void_?'void':''}"><div class="r1 ${cls}"><span>${s}${eur(m.c)}${void_?'<span class="tag">ANULADO</span>':edited?'<span class="tag">CORREGIDO</span>':''}</span><span>${m.k==='in'?'Retirada':'Gasto'} #${m.id}</span></div>
+  <div class="r2"><span>${date}${note?' · '+note:''}</span><span>Saldo <b>${eur(run)}</b></span></div>
+  ${void_?'':`<div class="btns"><button data-edit="${m.id}">Editar</button><button data-void="${m.id}">Eliminar</button></div>`}</div>`;
+}
+$('#list').addEventListener('click',e=>{
+  const ed=e.target.dataset.edit,vo=e.target.dataset.void;
+  if(ed)openForm(null,ed);
+  if(vo&&confirm('¿Eliminar este movimiento? Quedará anulado en el historial y el saldo se corregirá.')){
+    const m=byId(vo),v=eff(vo);add('adj',m.k==='in'?-v:v,today(),'Anulado',m.id);render();
+  }
+});
+$('#fDate').onchange=render;
+$('#fClear').onclick=()=>{$('#fDate').value='';render()};
+$('#btnIn').onclick=()=>openForm('in');
+$('#btnOut').onclick=()=>openForm('out');
+
+/* ---------- Formularios ---------- */
+function modal(html){$('#box').innerHTML=html;$('#modal').classList.remove('hidden')}
+function closeModal(){$('#modal').classList.add('hidden');render()}
+function openForm(kind,editId){
+  const edit=editId!=null,m=edit&&byId(editId);
+  if(edit)kind=m.k;
+  const title=edit?'Corregir '+(kind==='in'?'retirada':'gasto')+' #'+m.id:kind==='in'?'Dinero retirado del banco':'Dinero gastado';
+  const val=edit?(eff(m.id)/100).toFixed(2).replace('.',','):'';
+  modal(`<h2>${title}</h2>
+  <label for="fa">Importe en euros</label><input id="fa" class="big" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${val}">
+  <label for="fn">${edit?'Motivo de la corrección (opcional)':'Descripción (opcional)'}</label><input id="fn" maxlength="60" autocomplete="off" placeholder="${kind==='in'?'Ej.: cajero':'Ej.: supermercado'}">
+  ${edit?'':`<label for="fd">Fecha</label><input type="date" id="fd" value="${today()}">`}
+  <div id="err" aria-live="polite"></div>
+  <div class="row">
+    <button id="ok" class="${kind==='in'?'b-in':'b-out'}" style="color:#fff">${edit?'Guardar corrección':'Guardar'}</button>
+    ${!edit&&kind==='out'?'<button id="ok2">Guardar y añadir otra factura</button>':''}
+    <button id="no">Cancelar</button>
+  </div>`);
+  setTimeout(()=>$('#fa').focus(),50);
+  const go=again=>{
+    const c=parseEur($('#fa').value);
+    if(c===null||c===0&&!edit)return $('#err').textContent='Escribe un importe válido, por ejemplo 12,50';
+    const n=$('#fn').value.trim();
+    if(edit){
+      const cur=eff(m.id),delta=kind==='in'?c-cur:-(c-cur);
+      if(delta!==0){
+        if(kind==='out'&&balance()+delta<0&&!confirm('El saldo quedará negativo. ¿Continuar?'))return;
+        add('adj',delta,today(),n||'Corrección',m.id);
+      }
+      return closeModal();
+    }
+    if(kind==='out'&&balance()-c<0&&!confirm('Este gasto deja el saldo en negativo. ¿Guardar igualmente?'))return;
+    add(kind,c,$('#fd').value||today(),n);
+    if(again){render();openForm('out')}else closeModal();
+  };
+  $('#ok').onclick=()=>go(false);
+  if($('#ok2'))$('#ok2').onclick=()=>go(true);
+  $('#no').onclick=closeModal;
+}
+$('#btnSet').onclick=()=>{
+  modal(`<h2>Ajustes</h2>
+  <label for="su">Avisar cuando el saldo sea de (€) o menos</label><input id="su" inputmode="decimal" value="${(D.umbral/100).toFixed(2).replace('.',',')}">
+  <label for="sl">Bloqueo automático por inactividad</label>
+  <select id="sl">${[[30,'30 segundos'],[60,'1 minuto'],[180,'3 minutos'],[300,'5 minutos']].map(([v,t])=>`<option value="${v}" ${D.lock==v?'selected':''}>${t}</option>`).join('')}</select>
+  <div id="err"></div>
+  <div class="row"><button id="ok" class="b-in" style="color:#fff">Guardar ajustes</button><button id="cp">Cambiar PIN</button><button id="no">Cerrar</button></div>`);
+  $('#ok').onclick=()=>{const c=parseEur($('#su').value);if(c===null)return $('#err').textContent='Escribe un importe válido';D.umbral=c;D.lock=+$('#sl').value;save();closeModal()};
+  $('#cp').onclick=()=>showPin('new',true);
+  $('#no').onclick=closeModal;
+};
+
+/* ---------- Excel (.xlsx real, sin librerías) ---------- */
+const CRC=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xffffffff;for(const x of b)c=CRC[(c^x)&255]^(c>>>8);return(c^0xffffffff)>>>0};
+function zip(files){
+  const te=new TextEncoder(),parts=[],cd=[];let off=0;
+  const u16=n=>[n&255,n>>8&255],u32=n=>[n&255,n>>8&255,n>>16&255,n>>24&255];
+  for(const[name,txt]of files){
+    const nb=te.encode(name),data=te.encode(txt),crc=crc32(data);
+    const h=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),...u16(0),...nb]);
+    parts.push(h,data);
+    cd.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off),...nb]));
+    off+=h.length+data.length;
+  }
+  const cdSize=cd.reduce((s,x)=>s+x.length,0);
+  const end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cdSize),...u32(off),...u16(0)]);
+  return new Blob([...parts,...cd,end],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function exportXlsx(){
+  const L='ABCDE',x=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const rows=[['Fecha','Tipo','Descripción','Importe (€)','Saldo (€)']];
+  let run=0,tin=0,tout=0;
+  sorted().forEach(m=>{
+    run+=sign(m);const[a,b]=contrib(m);tin+=a;tout+=b;
+    rows.push([fmtDate(m.d),m.k==='in'?'Retirada':m.k==='out'?'Gasto':'Ajuste (#'+m.of+')',(m.n||'')+' [#'+m.id+']',sign(m)/100,run/100]);
+  });
+  rows.push([],['','','Total retirado',tin/100],['','','Total gastado',tout/100],['','','Saldo actual',balance()/100]);
+  const sheet=rows.map((r,i)=>`<row r="${i+1}">`+r.map((v,j)=>v===''||v===undefined?'':typeof v==='number'?`<c r="${L[j]}${i+1}"><v>${v}</v></c>`:`<c r="${L[j]}${i+1}" t="inlineStr"><is><t>${x(v)}</t></is></c>`).join('')+'</row>').join('');
+  const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const blob=zip([
+    ['[Content_Types].xml',X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ['_rels/.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml',X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Movimientos" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/worksheets/sheet1.xml',X+'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="13" customWidth="1"/><col min="2" max="2" width="16" customWidth="1"/><col min="3" max="3" width="34" customWidth="1"/><col min="4" max="5" width="14" customWidth="1"/></cols><sheetData>'+sheet+'</sheetData></worksheet>']
+  ]);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Control_Efectivo_'+today()+'.xlsx';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+$('#btnXls').onclick=exportXlsx;
+
+/* ---------- App instalada: modo sin conexión ---------- */
+if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
+
+/* ---------- Inicio ---------- */
+buildPad();
+showPin(D.pin?'unlock':'new',false);
+</script>
+</body>
+</html>
