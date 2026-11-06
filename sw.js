@@ -1,6 +1,6 @@
 // Guarda la app en el móvil para que funcione sin internet.
 // Si cambias algún archivo, sube también este cambiando el número de versión.
-const V = 'control-efectivo-v1';
+const V = 'control-efectivo-v2';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
